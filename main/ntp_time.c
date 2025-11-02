@@ -31,7 +31,7 @@ void ntp_time_init(void)
     sntp_init();
     
     // Set timezone to UTC (modify as needed)
-    setenv("TZ", "UTC", 1);
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
     tzset();
 }
 

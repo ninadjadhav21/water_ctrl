@@ -2,6 +2,7 @@
 #define _NTP_TIME_H_
 
 #include <time.h>
+#include "stdbool.h"
 
 void ntp_time_init(void);
 bool ntp_time_sync(void);
