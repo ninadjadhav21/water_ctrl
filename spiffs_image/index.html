@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Plant Watering System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .manual-section { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .columns { display: flex; gap: 20px; }
+        .column { flex: 1; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, select, button { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { background: #3498db; color: white; border: none; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #2980b9; }
+        button.manual { background: #e74c3c; }
+        button.manual:hover { background: #c0392b; }
+        .schedule-list { list-style: none; }
+        .schedule-item { background: #ecf0f1; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .schedule-time { font-weight: bold; color: #2c3e50; }
+        .schedule-date { color: #7f8c8d; font-size: 12px; }
+        .status { padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .quick-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .quick-buttons button { flex: 1; }
+        h2 { color: #2c3e50; margin-bottom: 15px; }
+        h3 { color: #34495e; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1>🌱 Plant Watering System</h1>
+            <div id='status' class='status'></div>
+        </div>
+        
+        <div class='manual-section'>
+            <h2>Manual Watering Control</h2>
+            <div class='form-group'>
+                <label for='duration'>Watering Duration (seconds, max 3600):</label>
+                <input type='number' id='duration' min='1' max='3600' value='30'>
+            </div>
+            <button class='manual' onclick='startManualWatering()'>Start Manual Watering</button>
+            <div class='quick-buttons'>
+                <button onclick='setDuration(30)'>30s</button>
+                <button onclick='setDuration(60)'>1m</button>
+                <button onclick='setDuration(300)'>5m</button>
+                <button onclick='setDuration(600)'>10m</button>
+            </div>
+        </div>
+        
+        <div class='columns'>
+            <div class='column'>
+                <h2>Create New Schedule</h2>
+                <form id='scheduleForm'>
+                    <div class='form-group'>
+                        <label for='scheduleDate'>Date:</label>
+                        <input type='date' id='scheduleDate' required>
+                    </div>
+                    <div class='form-group'>
+                        <label for='scheduleTime'>Time:</label>
+                        <input type='time' id='scheduleTime' required>
+                    </div>
+                    <div class='form-group'>
+                        <label for='scheduleDuration'>Duration (seconds):</label>
+                        <input type='number' id='scheduleDuration' min='1' max='3600' value='30' required>
+                    </div>
+                    <div class='form-group'>
+                        <label for='eventId'>Event ID (optional):</label>
+                        <input type='text' id='eventId' placeholder='morning_watering'>
+                    </div>
+                    <button type='button' onclick='createSchedule()'>Create Schedule</button>
+                </form>
+            </div>
+            
+            <div class='column'>
+                <h2>Schedules for Next 7 Days</h2>
+                <div id='schedulesList'></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function setDuration(seconds) {
+            document.getElementById('duration').value = seconds;
+        }
+        
+        function startManualWatering() {
+            const duration = document.getElementById('duration').value;
+            if (duration < 1 || duration > 3600) {
+                alert('Duration must be between 1 and 3600 seconds');
+                return;
+            }
+            
+            fetch('/api/water', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration: parseInt(duration) })
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert('Manual watering started for ' + duration + ' seconds');
+                updateStatus('Manual watering started', 'connected');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateStatus('Error starting watering', 'error');
+            });
+        }
+        
+        function createSchedule() {
+            const date = document.getElementById('scheduleDate').value;
+            const time = document.getElementById('scheduleTime').value;
+            const duration = document.getElementById('scheduleDuration').value;
+            const eventId = document.getElementById('eventId').value || `event_${Date.now()}`;
+            
+            if (!date || !time || !duration) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            const [year, month, day] = date.split('-');
+            const [hour, minute] = time.split(':');
+            
+            const scheduleData = {
+                events: [{
+                    id: eventId,
+                    year: parseInt(year),
+                    month: parseInt(month),
+                    day: parseInt(day),
+                    hour: parseInt(hour),
+                    minute: parseInt(minute),
+                    duration_seconds: parseInt(duration),
+                    enabled: true
+                }]
+            };
+            
+            fetch('/api/schedule?date=' + date, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scheduleData)
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert('Schedule created successfully!');
+                document.getElementById('scheduleForm').reset();
+                loadSchedules();
+                updateStatus('Schedule created', 'connected');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateStatus('Error creating schedule', 'error');
+            });
+        }
+        
+        function loadSchedules() {
+            const today = new Date();
+            const schedulesList = document.getElementById('schedulesList');
+            schedulesList.innerHTML = '<p>Loading schedules...</p>';
+            
+            // Get schedules for next 7 days
+            const promises = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                promises.push(fetch('/api/schedule?date=' + dateStr).then(r => r.json()));
+            }
+            
+            Promise.all(promises)
+            .then(schedules => {
+                let html = '<ul class=\"schedule-list\">';
+                let hasSchedules = false;
+                
+                schedules.forEach((schedule, index) => {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() + index);
+                    const dateStr = date.toISOString().split('T')[0];
+                    
+                    if (schedule.events && schedule.events.length > 0) {
+                        hasSchedules = true;
+                        html += `<li class=\"schedule-item\">
+                               <div class=\"schedule-date\">${dateStr}</div>`;
+                        schedule.events.forEach(event => {
+                            const timeStr = `${event.hour.toString().padStart(2, '0')}:${event.minute.toString().padStart(2, '0')}`;
+                            html += `<div class=\"schedule-time\">${timeStr} - ${event.duration_seconds}s</div>
+                                     <div>ID: ${event.id}</div>`;
+                        });
+                        
+                        html += '</li>';
+                    }
+                });
+                
+                if (!hasSchedules) {
+                    html = '<p>No schedules found for the next 7 days</p>';
+                } else {
+                    html += '</ul>';
+                }
+                
+                schedulesList.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading schedules:', error);
+                schedulesList.innerHTML = '<p>Error loading schedules</p>';
+            });
+        }
+        
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            setTimeout(() => {
+                statusDiv.textContent = '';
+                statusDiv.className = 'status';
+            }, 3000);
+        }
+        
+        function checkSystemStatus() {
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                updateStatus('System connected', 'connected');
+            })
+            .catch(error => {
+                updateStatus('System disconnected', 'error');
+            });
+        }
+        
+        // Set default date to today and time to next hour
+        window.onload = function() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const nextHour = (now.getHours() + 1) % 24;
+            const timeStr = nextHour.toString().padStart(2, '0') + ':00';
+            
+            document.getElementById('scheduleDate').value = today;
+            document.getElementById('scheduleTime').value = timeStr;
+            
+            checkSystemStatus();
+            loadSchedules();
+            
+            // Refresh schedules every 30 seconds
+            setInterval(loadSchedules, 30000);
+        };
+    </script>
+</body>
+</html>

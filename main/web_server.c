@@ -14,268 +14,92 @@ static const char *TAG = "WEB_SERVER";
 static httpd_handle_t server = NULL;
 
 // HTML content for the main page
-static const char* HTML_MAIN_PAGE = 
-"<!DOCTYPE html>"
-"<html lang='en'>"
-"<head>"
-"    <meta charset='UTF-8'>"
-"    <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-"    <title>Plant Watering System</title>"
-"    <style>"
-"        * { margin: 0; padding: 0; box-sizing: border-box; }"
-"        body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }"
-"        .container { max-width: 1200px; margin: 0 auto; }"
-"        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }"
-"        .manual-section { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }"
-"        .columns { display: flex; gap: 20px; }"
-"        .column { flex: 1; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }"
-"        .form-group { margin-bottom: 15px; }"
-"        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }"
-"        input, select, button { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }"
-"        button { background: #3498db; color: white; border: none; cursor: pointer; margin-top: 10px; }"
-"        button:hover { background: #2980b9; }"
-"        button.manual { background: #e74c3c; }"
-"        button.manual:hover { background: #c0392b; }"
-"        .schedule-list { list-style: none; }"
-"        .schedule-item { background: #ecf0f1; padding: 10px; margin-bottom: 10px; border-radius: 5px; }"
-"        .schedule-time { font-weight: bold; color: #2c3e50; }"
-"        .schedule-date { color: #7f8c8d; font-size: 12px; }"
-"        .status { padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }"
-"        .status.connected { background: #d4edda; color: #155724; }"
-"        .status.error { background: #f8d7da; color: #721c24; }"
-"        .quick-buttons { display: flex; gap: 10px; margin-top: 10px; }"
-"        .quick-buttons button { flex: 1; }"
-"        h2 { color: #2c3e50; margin-bottom: 15px; }"
-"        h3 { color: #34495e; margin-bottom: 10px; }"
-"    </style>"
-"</head>"
-"<body>"
-"    <div class='container'>"
-"        <div class='header'>"
-"            <h1>🌱 Plant Watering System</h1>"
-"            <div id='status' class='status'></div>"
-"        </div>"
-"        "
-"        <div class='manual-section'>"
-"            <h2>Manual Watering Control</h2>"
-"            <div class='form-group'>"
-"                <label for='duration'>Watering Duration (seconds, max 3600):</label>"
-"                <input type='number' id='duration' min='1' max='3600' value='30'>"
-"            </div>"
-"            <button class='manual' onclick='startManualWatering()'>Start Manual Watering</button>"
-"            <div class='quick-buttons'>"
-"                <button onclick='setDuration(30)'>30s</button>"
-"                <button onclick='setDuration(60)'>1m</button>"
-"                <button onclick='setDuration(300)'>5m</button>"
-"                <button onclick='setDuration(600)'>10m</button>"
-"            </div>"
-"        </div>"
-"        "
-"        <div class='columns'>"
-"            <div class='column'>"
-"                <h2>Create New Schedule</h2>"
-"                <form id='scheduleForm'>"
-"                    <div class='form-group'>"
-"                        <label for='scheduleDate'>Date:</label>"
-"                        <input type='date' id='scheduleDate' required>"
-"                    </div>"
-"                    <div class='form-group'>"
-"                        <label for='scheduleTime'>Time:</label>"
-"                        <input type='time' id='scheduleTime' required>"
-"                    </div>"
-"                    <div class='form-group'>"
-"                        <label for='scheduleDuration'>Duration (seconds):</label>"
-"                        <input type='number' id='scheduleDuration' min='1' max='3600' value='30' required>"
-"                    </div>"
-"                    <div class='form-group'>"
-"                        <label for='eventId'>Event ID (optional):</label>"
-"                        <input type='text' id='eventId' placeholder='morning_watering'>"
-"                    </div>"
-"                    <button type='button' onclick='createSchedule()'>Create Schedule</button>"
-"                </form>"
-"            </div>"
-"            "
-"            <div class='column'>"
-"                <h2>Schedules for Next 7 Days</h2>"
-"                <div id='schedulesList'></div>"
-"            </div>"
-"        </div>"
-"    </div>"
-"    "
-"    <script>"
-"        function setDuration(seconds) {"
-"            document.getElementById('duration').value = seconds;"
-"        }"
-"        "
-"        function startManualWatering() {"
-"            const duration = document.getElementById('duration').value;"
-"            if (duration < 1 || duration > 3600) {"
-"                alert('Duration must be between 1 and 3600 seconds');"
-"                return;"
-"            }"
-"            "
-"            fetch('/api/water', {"
-"                method: 'POST',"
-"                headers: { 'Content-Type': 'application/json' },"
-"                body: JSON.stringify({ duration: parseInt(duration) })"
-"            })"
-"            .then(response => response.text())"
-"            .then(data => {"
-"                alert('Manual watering started for ' + duration + ' seconds');"
-"                updateStatus('Manual watering started', 'connected');"
-"            })"
-"            .catch(error => {"
-"                console.error('Error:', error);"
-"                updateStatus('Error starting watering', 'error');"
-"            });"
-"        }"
-"        "
-"        function createSchedule() {"
-"            const date = document.getElementById('scheduleDate').value;"
-"            const time = document.getElementById('scheduleTime').value;"
-"            const duration = document.getElementById('scheduleDuration').value;"
-"            const eventId = document.getElementById('eventId').value || `event_${Date.now()}`;"
-"            "
-"            if (!date || !time || !duration) {"
-"                alert('Please fill in all required fields');"
-"                return;"
-"            }"
-"            "
-"            const [year, month, day] = date.split('-');"
-"            const [hour, minute] = time.split(':');"
-"            "
-"            const scheduleData = {"
-"                events: [{"
-"                    id: eventId,"
-"                    year: parseInt(year),"
-"                    month: parseInt(month),"
-"                    day: parseInt(day),"
-"                    hour: parseInt(hour),"
-"                    minute: parseInt(minute),"
-"                    duration_seconds: parseInt(duration),"
-"                    enabled: true"
-"                }]"
-"            };"
-"            "
-"            fetch('/api/schedule?date=' + date, {"
-"                method: 'POST',"
-"                headers: { 'Content-Type': 'application/json' },"
-"                body: JSON.stringify(scheduleData)"
-"            })"
-"            .then(response => response.text())"
-"            .then(data => {"
-"                alert('Schedule created successfully!');"
-"                document.getElementById('scheduleForm').reset();"
-"                loadSchedules();"
-"                updateStatus('Schedule created', 'connected');"
-"            })"
-"            .catch(error => {"
-"                console.error('Error:', error);"
-"                updateStatus('Error creating schedule', 'error');"
-"            });"
-"        }"
-"        "
-"        function loadSchedules() {"
-"            const today = new Date();"
-"            const schedulesList = document.getElementById('schedulesList');"
-"            schedulesList.innerHTML = '<p>Loading schedules...</p>';"
-"            "
-"            // Get schedules for next 7 days"
-"            const promises = [];"
-"            for (let i = 0; i < 7; i++) {"
-"                const date = new Date(today);"
-"                date.setDate(today.getDate() + i);"
-"                const dateStr = date.toISOString().split('T')[0];"
-"                promises.push(fetch('/api/schedule?date=' + dateStr).then(r => r.json()));"
-"            }"
-"            "
-"            Promise.all(promises)"
-"            .then(schedules => {"
-"                let html = '<ul class=\"schedule-list\">';"
-"                let hasSchedules = false;"
-"                "
-"                schedules.forEach((schedule, index) => {"
-"                    const date = new Date(today);"
-"                    date.setDate(today.getDate() + index);"
-"                    const dateStr = date.toISOString().split('T')[0];"
-"                    "
-"                    if (schedule.events && schedule.events.length > 0) {"
-"                        hasSchedules = true;"
-"                        html += `<li class=\"schedule-item\">"
-"                               `<div class=\"schedule-date\">${dateStr}</div>`;"
-"                        "
-"                        schedule.events.forEach(event => {"
-"                            const timeStr = `${event.hour.toString().padStart(2, '0')}:${event.minute.toString().padStart(2, '0')}`;"
-"                            html += `<div class=\"schedule-time\">${timeStr} - ${event.duration_seconds}s</div>"
-"                                   `<div>ID: ${event.id}</div>`;"
-"                        });"
-"                        "
-"                        html += `</li>`;"
-"                    }"
-"                });"
-"                "
-"                if (!hasSchedules) {"
-"                    html = '<p>No schedules found for the next 7 days</p>';"
-"                } else {"
-"                    html += '</ul>';"
-"                }"
-"                "
-"                schedulesList.innerHTML = html;"
-"            })"
-"            .catch(error => {"
-"                console.error('Error loading schedules:', error);"
-"                schedulesList.innerHTML = '<p>Error loading schedules</p>';"
-"            });"
-"        }"
-"        "
-"        function updateStatus(message, type) {"
-"            const statusDiv = document.getElementById('status');"
-"            statusDiv.textContent = message;"
-"            statusDiv.className = 'status ' + type;"
-"            setTimeout(() => {"
-"                statusDiv.textContent = '';"
-"                statusDiv.className = 'status';"
-"            }, 3000);"
-"        }"
-"        "
-"        function checkSystemStatus() {"
-"            fetch('/api/status')"
-"            .then(response => response.json())"
-"            .then(data => {"
-"                updateStatus('System connected', 'connected');"
-"            })"
-"            .catch(error => {"
-"                updateStatus('System disconnected', 'error');"
-"            });"
-"        }"
-"        "
-"        // Set default date to today and time to next hour"
-"        window.onload = function() {"
-"            const now = new Date();"
-"            const today = now.toISOString().split('T')[0];"
-"            const nextHour = (now.getHours() + 1) % 24;"
-"            const timeStr = nextHour.toString().padStart(2, '0') + ':00';"
-"            "
-"            document.getElementById('scheduleDate').value = today;"
-"            document.getElementById('scheduleTime').value = timeStr;"
-"            "
-"            checkSystemStatus();"
-"            loadSchedules();"
-"            "
-"            // Refresh schedules every 30 seconds"
-"            setInterval(loadSchedules, 30000);"
-"        };"
-"    </script>"
-"</body>"
-"</html>";
+const char* error_html = 
+            "<!DOCTYPE html>"
+            "<html>"
+            "<head><title>Error</title></head>"
+            "<body>"
+            "<h1>Error Loading Page</h1>"
+            "<p>Failed to load index.html from storage</p>"
+            "</body>"
+            "</html>";
 
-// Handler for serving the main page
+// Helper function declarations
+static esp_err_t serve_error_html(httpd_req_t *req);
+static esp_err_t serve_large_file_chunked(httpd_req_t *req);
+
+// Handler for serving the main page from SPIFFS with fallback
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
+    // Try to open the file from SPIFFS
+    FILE* file = fopen("/spiffs/index.html", "r");
+    if (file == NULL) {
+        ESP_LOGW(TAG, "index.html not found in SPIFFS, using embedded version");
+        // this will return error
+        return serve_error_html(req);
+    }
+
+    // Get file size
+    if (fseek(file, 0, SEEK_END) != 0) {
+        ESP_LOGE(TAG, "Failed to seek in file");
+        fclose(file);
+        return serve_error_html(req);
+    }
+
+    long file_size = ftell(file);
+    if (file_size < 0) {
+        ESP_LOGE(TAG, "Failed to get file size");
+        fclose(file);
+        return serve_error_html(req);
+    }
+
+    if (fseek(file, 0, SEEK_SET) != 0) {
+        ESP_LOGE(TAG, "Failed to rewind file");
+        fclose(file);
+        return serve_error_html(req);
+    }
+    // For larger files, use chunked transfer
+    return serve_large_file_chunked(req);
+}
+
+// Helper function to serve embedded HTML as fallback
+static esp_err_t serve_error_html(httpd_req_t *req)
+{
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, HTML_MAIN_PAGE, strlen(HTML_MAIN_PAGE));
+    ESP_LOGI(TAG, "Serving error HTML version");
+    return httpd_resp_send(req, error_html, strlen(error_html));
+}
+
+// Helper function to serve large files in chunks
+static esp_err_t serve_large_file_chunked(httpd_req_t *req)
+{
+    FILE* file = fopen("/spiffs/index.html", "r");
+    if (file == NULL) {
+        return serve_error_html(req);
+    }
+
+    httpd_resp_set_type(req, "text/html");
+
+    char chunk[1024];
+    size_t total_sent = 0;
+    size_t bytes_read;
+
+    while ((bytes_read = fread(chunk, 1, sizeof(chunk), file)) > 0) {
+        if (httpd_resp_send_chunk(req, chunk, bytes_read) != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to send chunk at offset %zu", total_sent);
+            fclose(file);
+            return ESP_FAIL;
+        }
+        total_sent += bytes_read;
+    }
+
+    httpd_resp_send_chunk(req, NULL, 0);
+    fclose(file);
+
+    ESP_LOGI(TAG, "Served large index.html in chunks (%zu bytes)", total_sent);
     return ESP_OK;
 }
+
 
 // Handler for getting system status
 static esp_err_t status_get_handler(httpd_req_t *req)
@@ -303,6 +127,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 // Handler for manual watering
 static esp_err_t water_post_handler(httpd_req_t *req)
 {
+    ESP_LOGI(TAG,"Water post received\n");
     char buf[100];
     int ret = httpd_req_recv(req, buf, sizeof(buf)-1);
     
@@ -355,10 +180,11 @@ static esp_err_t schedule_get_handler(httpd_req_t *req)
         // If no date provided, use today's date
         struct tm current_time;
         get_current_time(&current_time);
-        snprintf(date, sizeof(date), "%04d-%02d-%02d", 
-                 current_time.tm_year + 1900, 
-                 current_time.tm_mon + 1, 
-                 current_time.tm_mday);
+        if (strftime(date, sizeof(date), "%Y-%m-%d", &current_time) == 0) {
+            ESP_LOGE(TAG, "Failed to format current date");
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
     }
     
     if (!is_valid_date(date)) {
@@ -559,6 +385,17 @@ static esp_err_t schedule_delete_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t favicon_get_handler(httpd_req_t *req)
+{
+    extern const unsigned char favicon_ico_start[] asm("_binary_favicon_ico_start");
+    extern const unsigned char favicon_ico_end[]   asm("_binary_favicon_ico_end");
+    const size_t favicon_ico_size = (favicon_ico_end - favicon_ico_start);
+    httpd_resp_set_type(req, "image/x-icon");
+    httpd_resp_send(req, (const char *)favicon_ico_start, favicon_ico_size);
+    return ESP_OK;
+}
+
+
 // URI handler structures
 static const httpd_uri_t root = {
     .uri       = "/",
@@ -602,6 +439,16 @@ static const httpd_uri_t schedule_delete = {
     .user_ctx  = NULL
 };
 
+static const httpd_uri_t favicon_icon = {
+    .uri       = "/favicon.ico",  // Match all URIs of type /path/to/file
+    .method    = HTTP_GET,
+    .handler   = favicon_get_handler,
+    .user_ctx  = NULL    // Pass server data as context
+};
+
+
+
+
 void start_web_server(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -618,6 +465,7 @@ void start_web_server(void)
         httpd_register_uri_handler(server, &schedule_get);
         httpd_register_uri_handler(server, &schedule_post);
         httpd_register_uri_handler(server, &schedule_delete);
+        httpd_register_uri_handler(server, &favicon_icon);
         
         ESP_LOGI(TAG, "Web server started successfully");
     } else {
