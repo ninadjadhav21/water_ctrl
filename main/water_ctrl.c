@@ -3,9 +3,10 @@
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "watering_controller.h"
+#include "water_ctrl.h"
 #include "schedule_manager.h"
 #include "ntp_time.h"
+#include "string.h"
 
 static const char *TAG = "WATERING";
 
