@@ -18,7 +18,6 @@
 #include "esp_err.h"
 #include "nvs_flash.h"
 #include "protocol_examples_common.h"
-#include "file_serving_example_common.h"
 #include "water_ctrl.h"
 #include "web_server.h"
 
