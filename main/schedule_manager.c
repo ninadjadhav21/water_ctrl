@@ -3,7 +3,9 @@
 #include "esp_log.h"
 #include "cJSON.h"
 #include <string.h>
+#include "dirent.h"
 #include <sys/stat.h>
+#include "ntp_time.h"
 
 static const char *TAG = "SCHEDULE_MGR";
 
@@ -20,12 +22,24 @@ void schedule_manager_init(void)
 
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to mount SPIFFS (%s)", esp_err_to_name(ret));
-        return;
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+        }
+        ESP_ERROR_CHECK(ret);
     }
 
-    // Create schedules directory
-    mkdir(SCHEDULE_FILE_PATH, 0755);
+    size_t total = 0, used = 0;
+    ret = esp_spiffs_info(NULL, &total, &used);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+        ESP_ERROR_CHECK(ret);
+    }
+
+    ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
 
     // Create summary file if it doesn't exist
     FILE* f = fopen(SUMMARY_FILE_PATH, "r");
