@@ -8,6 +8,8 @@
 #include "ntp_time.h"
 #include <string.h>
 #include <sys/stat.h>
+#include <stdint.h>            // <--- added
+#include "water_status.h"      // <--- added
 
 static const char *TAG = "WEB_SERVER";
 
@@ -395,6 +397,41 @@ static esp_err_t favicon_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+// New handler for water level status (calls get_water_level_status)
+static esp_err_t water_status_get_handler(httpd_req_t *req)
+{
+    uint16_t level = 0;
+    uint8_t empty = 0;
+
+    // Call to hardware/control layer to populate level and empty.
+    // Assume function is declared in water_ctrl.h:
+    //    bool get_water_level_status(uint16_t *level, uint8_t *empty);
+    // We call it and ignore boolean return — still return current values.
+    get_water_level_status(&level, &empty);
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    cJSON_AddNumberToObject(root, "level", level);
+    cJSON_AddBoolToObject(root, "empty", empty ? cJSON_True : cJSON_False);
+
+    char *response = cJSON_Print(root);
+    if (!response) {
+        cJSON_Delete(root);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, response, strlen(response));
+
+    cJSON_Delete(root);
+    free(response);
+    return ESP_OK;
+}
 
 // URI handler structures
 static const httpd_uri_t root = {
@@ -446,6 +483,14 @@ static const httpd_uri_t favicon_icon = {
     .user_ctx  = NULL    // Pass server data as context
 };
 
+// New URI for water status
+static const httpd_uri_t water_status_get = {
+    .uri       = "/api/water_status",
+    .method    = HTTP_GET,
+    .handler   = water_status_get_handler,
+    .user_ctx  = NULL
+};
+
 
 
 
@@ -466,6 +511,9 @@ void start_web_server(void)
         httpd_register_uri_handler(server, &schedule_post);
         httpd_register_uri_handler(server, &schedule_delete);
         httpd_register_uri_handler(server, &favicon_icon);
+
+        // Register new water status handler
+        httpd_register_uri_handler(server, &water_status_get);
         
         ESP_LOGI(TAG, "Web server started successfully");
     } else {

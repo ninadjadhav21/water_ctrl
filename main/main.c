@@ -20,6 +20,8 @@
 #include "protocol_examples_common.h"
 #include "water_ctrl.h"
 #include "web_server.h"
+#include "water_status.h"
+
 
 /* This example demonstrates how to create file server
  * using esp_http_server. This file has only startup code.
@@ -41,8 +43,13 @@ void app_main(void)
      */
     ESP_ERROR_CHECK(example_connect());
 
-    /* Start the file server */
+    /* Start modules */
     watering_controller_init();
+
+    // Initialize water status subsystem (UART + GPIO + task)
+    water_status_init();
+
+    /* Start the file server */
     start_web_server();
     ESP_LOGI(TAG, "File server started");
 }
