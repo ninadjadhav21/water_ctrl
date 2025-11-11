@@ -10,7 +10,8 @@
 
 static const char *TAG = "WATERING";
 
-#define PUMP_GPIO      GPIO_NUM_2
+// Don't use GPIO2 as it is shared with BOOT, it will cause problem because of strapping
+#define PUMP_GPIO      GPIO_NUM_4
 #define WATERING_QUEUE_SIZE 10
 
 static QueueHandle_t watering_queue = NULL;
