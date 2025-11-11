@@ -416,7 +416,7 @@ static esp_err_t water_status_get_handler(httpd_req_t *req)
     }
 
     cJSON_AddNumberToObject(root, "level", level);
-    cJSON_AddBoolToObject(root, "empty", empty ? cJSON_True : cJSON_False);
+    cJSON_AddNumberToObject(root, "empty", empty);
 
     char *response = cJSON_Print(root);
     if (!response) {

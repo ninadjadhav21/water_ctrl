@@ -264,7 +264,7 @@
                     document.getElementById('waterLevel').textContent = '--';
                 }
                 if (typeof data.empty !== 'undefined') {
-                    document.getElementById('waterEmpty').textContent = data.empty ? 'Water Empty' : 'Water Available';
+                    document.getElementById('waterEmpty').textContent = data.empty == 0 ? 'Water Empty' : 'Water Available';
                 } else {
                     document.getElementById('waterEmpty').textContent = '--';
                 }
